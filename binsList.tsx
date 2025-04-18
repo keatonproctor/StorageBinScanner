@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './App';
 
-const Scanner = () => {
+const BinsList = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   return (
@@ -12,7 +12,7 @@ const Scanner = () => {
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
         <Text style={styles.backButtonText}>← Home</Text>
       </TouchableOpacity>
-      <Text style={styles.text}>This is the Scanner Page</Text>
+      <Text style={styles.text}>This is the Bins List Page</Text>
     </View>
   );
 };
@@ -20,9 +20,9 @@ const Scanner = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFEB3B', // Same yellow as the home page
-    justifyContent: 'center', // Center content vertically
-    alignItems: 'center', // Center content horizontally
+    backgroundColor: '#FFEB3B', // Same yellow as other pages
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   text: {
     fontSize: 20,
@@ -45,4 +45,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Scanner;
+export default BinsList;
