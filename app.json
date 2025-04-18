@@ -13,13 +13,19 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to use the camera",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone"
+      },
+      "bundleIdentifier": "com.keatonproctor.StorageScanner"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.keatonproctor.StorageScanner"
     },
     "web": {
       "favicon": "./assets/favicon.png"
