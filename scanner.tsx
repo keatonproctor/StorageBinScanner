@@ -1,10 +1,28 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CameraView, Camera, useCameraPermissions } from 'expo-camera';
+import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './App';
+import { useEffect, useRef } from 'react';
 
 export default function Scanner() {
+    const qrLock = useRef(false);
+    const appState = useRef(AppState.currentState);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextAppState) => {
+            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+                // App has come to the foreground
+                qrLock.current = false;
+            }
+            appState.current = nextAppState;
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, []);
+
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const [permission, requestPermission] = useCameraPermissions();
   
@@ -29,7 +47,20 @@ export default function Scanner() {
             <Text style={styles.backButtonText}>← Home</Text>
         </TouchableOpacity>
         <View style={styles.cameraContainer}>
-            <CameraView style={styles.scannerBox} facing="back" />
+            <CameraView 
+                style={styles.scannerBox} 
+                facing="back" 
+                onBarcodeScanned={({ data }) => {
+                    if(data && !qrLock.current) {
+                        qrLock.current = true;
+                        setTimeout(async () => {
+                            await Linking.openURL(data); // Open the scanned URL
+                            qrLock.current = false; // Reset the lock after opening the URL
+                        }, 1000); // Delay for 1 second
+                    }
+                }}
+                
+            />
         </View>
         </View>
     );
