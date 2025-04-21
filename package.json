@@ -13,13 +13,17 @@
     "@react-navigation/stack": "^7.2.10",
     "expo": "~52.0.46",
     "expo-camera": "~16.0.18",
+    "expo-print": "~14.0.3",
     "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.25.0",
+    "react-native-qrcode-svg": "^6.3.15",
     "react-native-reanimated": "^3.17.4",
     "react-native-safe-area-context": "^5.4.0",
-    "react-native-screens": "^4.10.0"
+    "react-native-screens": "^4.10.0",
+    "react-native-svg": "15.8.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

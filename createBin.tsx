@@ -1,46 +1,74 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Keyboard, TouchableWithoutFeedback, Image, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './App';
 import QRCode from 'react-native-qrcode-svg';
 import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system'; // Ensure FileSystem is imported
 
-// const handlePrintQRCode = async () => {
-//   if (qrCodeRef.current) {
-//     (qrCodeRef.current as any).toDataURL(async (dataURL: any) => {
-//       const htmlContent = `
-//         <html>
-//           <body style="margin: 0; padding: 0;">
-//             <div style="width: 3.5in; height: 3.5in; display: flex; justify-content: flex-start; align-items: flex-start;">
-//               <img src="data:image/png;base64,${dataURL}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;" />
-//             </div>
-//           </body>
-//         </html>
-//       `;
-
-//       try {
-//         await Print.printAsync({ html: htmlContent });
-//       } catch (error: any) {
-//         if (error.message !== 'Printing did not complete') {
-//           console.error('Error printing QR code:', error);
-//         }
-//       }
-//     });
-//   }
-// };
+const storageFilePath = FileSystem.documentDirectory + 'storageBinScanner.json'; // Define the file path
 
 const CreateBin = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const qrCodeRef = useRef<any>(null);
   const [items, setItems] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null); // Create a ref for the ScrollView
+  const [isGenerateBinEnabled, setIsGenerateBinEnabled] = useState(false); // State to track button enable/disable
+
+  useEffect(() => {
+    setIsGenerateBinEnabled(items.length > 0); // Enable button if at least 1 item exists
+  }, [items]);
 
   const handleAddItem = () => {
     if (inputValue.trim()) {
-      setItems([...items, inputValue.trim()]);
+      setItems([inputValue.trim(), ...items]); // Add new item to the top of the list
       setInputValue('');
     }
+  };
+
+  const handleDeleteItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const generateUniqueId = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString(); // Generate a 6-digit random number as a string
+  };
+
+  const saveBinToFile = async (binData: any) => {
+    try {
+      const fileContents = await FileSystem.readAsStringAsync(storageFilePath);
+      const bins = JSON.parse(fileContents);
+      bins.push(binData); // Add the new bin data to the array
+      await FileSystem.writeAsStringAsync(storageFilePath, JSON.stringify(bins));
+      console.log('Updated file contents:', bins); // Log the updated file contents
+    } catch (error) {
+      console.error('Error saving bin to file:', error);
+    }
+  };
+
+  const handleGenerateBin = () => {
+    Alert.alert(
+      "Generate Bin",
+      "You're about to generate a new bin, continue?",
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("User canceled bin generation"),
+          style: "cancel",
+        },
+        {
+          text: "OK",
+          onPress: async () => {
+            const uniqueId = generateUniqueId();
+            const binData = [uniqueId, ...items]; // Create JSON array with unique ID and items
+            await saveBinToFile(binData); // Save the bin data to the file
+            setItems([]); // Clear the list in the user interface
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -49,21 +77,37 @@ const CreateBin = () => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.backButtonText}>← Home</Text>
         </TouchableOpacity>
-        <View style={styles.itemsContainer}>
-          {items.map((item, index) => (
-            <Text key={index} style={styles.itemText}>{item}</Text>
-          ))}
+        <View style={styles.fixedItemsContainer}> 
+          <ScrollView ref={scrollViewRef} style={styles.scrollableList} alwaysBounceVertical={true}>
+            {items.map((item, index) => (
+              <View key={index} style={styles.itemContainer}>
+                <Text style={styles.itemText}>{item}</Text>
+                <TouchableOpacity onPress={() => handleDeleteItem(index)} style={styles.deleteButton}>
+                  <Image source={require('./assets/delete.png')} style={styles.deleteIcon} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
         </View>
         <TextInput
           style={styles.input}
           value={inputValue}
           onChangeText={setInputValue}
           placeholder="Enter an item"
-          returnKeyType="default" // Keep the enter button on the keyboard
+          returnKeyType="default" 
         />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
-          <Text style={styles.addButtonText}>Add Item</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}> 
+          <TouchableOpacity
+            style={[styles.addButton, !isGenerateBinEnabled && { backgroundColor: '#BDBDBD' }]} // Gray out button when disabled
+            onPress={handleGenerateBin} // Use the new handler for the button
+            disabled={!isGenerateBinEnabled}
+          >
+            <Text style={styles.addButtonText}>Generate Bin</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+            <Text style={styles.addButtonText}>Add Item</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -95,30 +139,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  itemsContainer: {
+  fixedItemsContainer: {
     width: '100%',
     padding: 10,
     alignItems: 'flex-start',
+    position: 'absolute',
+    top: 100, // Adjust the position as needed
+  },
+  scrollableList: {
+    maxHeight: 240, // Adjusted height to fit 6 items before scrolling
+    width: '100%',
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 5,
   },
   itemText: {
-    fontSize: 16,
+    fontSize: 18, // Increased font size for list items
     color: '#212121',
     marginBottom: 5,
+    marginLeft: 15, // Added spacing from the left side of the screen
+  },
+  deleteButton: {
+    marginLeft: 10,
+    padding: 5,
+    borderRadius: 5,
+    marginRight: 15, // Moved the delete icon in from the right side of the screen
+  },
+  deleteIcon: {
+    width: 30, // Set the width of the delete icon
+    height: 30, // Set the height of the delete icon
   },
   input: {
     width: '90%',
     height: 40,
-    borderColor: '#212121',
-    borderWidth: 1,
-    borderRadius: 5,
+    borderColor: '#000', // Keep the border black
+    borderWidth: 3, // Make the border thicker
+    textAlign: 'center', // Center placeholder and entered text
+    borderRadius: 10, // Retain rounded corners
     paddingHorizontal: 10,
-    marginBottom: 10,
+    marginBottom: 20, // Maintain spacing between input and button
+    marginTop: 60, // Add spacing above the input
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10, // Add spacing above the buttons
+    gap: 10, // Add spacing between the buttons
   },
   addButton: {
     backgroundColor: '#212121',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
+    marginHorizontal: 5, // Add spacing between buttons
   },
   addButtonText: {
     color: '#FFEB3B',
