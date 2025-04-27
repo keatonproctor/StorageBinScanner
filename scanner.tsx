@@ -3,11 +3,12 @@ import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } f
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './App';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Scanner() {
     const qrLock = useRef(false);
     const appState = useRef(AppState.currentState);
+    const [isCameraActive, setIsCameraActive] = useState(false); // State to control camera activation
 
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -25,7 +26,22 @@ export default function Scanner() {
 
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const [permission, requestPermission] = useCameraPermissions();
-  
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            setIsCameraActive(true); // Activate the camera when the page is focused
+        });
+
+        const blurUnsubscribe = navigation.addListener('blur', () => {
+            setIsCameraActive(false); // Deactivate the camera when the page is blurred
+        });
+
+        return () => {
+            unsubscribe();
+            blurUnsubscribe();
+        };
+    }, [navigation]);
+
     if (!permission) {
         // Camera permissions are still loading.
         return <View />;
@@ -47,20 +63,21 @@ export default function Scanner() {
             <Text style={styles.backButtonText}>← Home</Text>
         </TouchableOpacity>
         <View style={styles.cameraContainer}>
-            <CameraView 
-                style={styles.scannerBox} 
-                facing="back" 
-                onBarcodeScanned={({ data }) => {
-                    if(data && !qrLock.current) {
-                        qrLock.current = true;
-                        setTimeout(async () => {
-                            await Linking.openURL(data); // Open the scanned URL
-                            qrLock.current = false; // Reset the lock after opening the URL
-                        }, 1000); // Delay for 1 second
-                    }
-                }}
-                
-            />
+            {isCameraActive && (
+                <CameraView 
+                    style={styles.scannerBox} 
+                    facing="back" 
+                    onBarcodeScanned={({ data }) => {
+                        if(data && !qrLock.current) {
+                            qrLock.current = true;
+                            setTimeout(async () => {
+                                await Linking.openURL(data); // Open the scanned URL
+                                qrLock.current = false; // Reset the lock after opening the URL
+                            }, 1000); // Delay for 1 second
+                        }
+                    }}
+                />
+            )}
         </View>
         </View>
     );

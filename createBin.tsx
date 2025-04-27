@@ -16,6 +16,8 @@ const CreateBin = () => {
   const [inputValue, setInputValue] = useState('');
   const scrollViewRef = useRef<ScrollView>(null); // Create a ref for the ScrollView
   const [isGenerateBinEnabled, setIsGenerateBinEnabled] = useState(false); // State to track button enable/disable
+  const [binTitle, setBinTitle] = useState(''); // State to store the bin title
+  const [isBinNameSet, setIsBinNameSet] = useState(false); // State to track if the bin name is set
 
   useEffect(() => {
     setIsGenerateBinEnabled(items.length > 0); // Enable button if at least 1 item exists
@@ -61,14 +63,29 @@ const CreateBin = () => {
         {
           text: "OK",
           onPress: async () => {
-            const uniqueId = generateUniqueId();
-            const binData = [uniqueId, ...items]; // Create JSON array with unique ID and items
-            await saveBinToFile(binData); // Save the bin data to the file
-            setItems([]); // Clear the list in the user interface
-          },
+          const uniqueId = generateUniqueId();
+          const binData = [uniqueId, binTitle, ...items]; // Ensure unique ID is the zeroth index and title is the first index
+          await saveBinToFile(binData); // Save the bin data to the file
+          setItems([]); // Clear the list in the user interface
+          setBinTitle(''); // Clear the bin title
+          setIsBinNameSet(false); // Reset the bin name state
+          navigation.navigate('GeneratedQRCode', { qrData: uniqueId }); // Navigate to the QR code page with the unique ID
+        },
         },
       ]
     );
+  };
+
+  const handleSetBinNameOrAddItem = () => {
+    if (!isBinNameSet) {
+      if (inputValue.trim()) {
+        setBinTitle(inputValue.trim()); // Set the bin title
+        setInputValue(''); // Clear the input field
+        setIsBinNameSet(true); // Mark the bin name as set
+      }
+    } else {
+      handleAddItem(); // Proceed with adding items
+    }
   };
 
   return (
@@ -77,6 +94,9 @@ const CreateBin = () => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.backButtonText}>← Home</Text>
         </TouchableOpacity>
+        {isBinNameSet && (
+          <Text style={styles.binTitle}>{binTitle}</Text> // Display the title at the very top once set
+        )}
         <View style={styles.fixedItemsContainer}> 
           <ScrollView ref={scrollViewRef} style={styles.scrollableList} alwaysBounceVertical={true}>
             {items.map((item, index) => (
@@ -93,20 +113,23 @@ const CreateBin = () => {
           style={styles.input}
           value={inputValue}
           onChangeText={setInputValue}
-          placeholder="Enter an item"
+          placeholder={isBinNameSet ? "Enter an item" : "Enter the name of the bin"} // Dynamic placeholder
+          placeholderTextColor="#999"
           returnKeyType="default" 
         />
         <View style={styles.buttonRow}> 
-          <TouchableOpacity
-            style={[styles.addButton, !isGenerateBinEnabled && { backgroundColor: '#BDBDBD' }]} // Gray out button when disabled
-            onPress={handleGenerateBin} // Use the new handler for the button
-            disabled={!isGenerateBinEnabled}
-          >
-            <Text style={styles.addButtonText}>Generate Bin</Text>
+          <TouchableOpacity style={styles.addButton} onPress={handleSetBinNameOrAddItem}>
+            <Text style={styles.addButtonText}>{isBinNameSet ? "Add Item" : "Set Bin Name"}</Text> 
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
-            <Text style={styles.addButtonText}>Add Item</Text>
-          </TouchableOpacity>
+          {isBinNameSet && (
+            <TouchableOpacity
+              style={[styles.generateButton, !isGenerateBinEnabled && { backgroundColor: '#BDBDBD' }]} // Gray out button when disabled
+              onPress={handleGenerateBin}
+              disabled={!isGenerateBinEnabled}
+            >
+              <Text style={styles.generateButtonText}>Generate Bin</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </TouchableWithoutFeedback>
@@ -184,6 +207,27 @@ const styles = StyleSheet.create({
     marginBottom: 20, // Maintain spacing between input and button
     marginTop: 60, // Add spacing above the input
   },
+  titleInput: {
+    width: '90%',
+    height: 40,
+    borderColor: '#000',
+    borderWidth: 3,
+    textAlign: 'center',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 20,
+    marginTop: 20,
+  },
+  binTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#212121',
+    textAlign: 'center',
+    marginBottom: 10,
+    position: 'absolute',
+    top: 80, // Position the title at the very top
+    width: '100%',
+  },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -217,6 +261,19 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   printButtonText: {
+    color: '#FFEB3B',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  generateButton: {
+    backgroundColor: '#212121',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginHorizontal: 5, // Add spacing between buttons
+  },
+  generateButtonText: {
     color: '#FFEB3B',
     fontSize: 16,
     fontWeight: 'bold',

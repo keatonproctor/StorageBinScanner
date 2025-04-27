@@ -1,9 +1,10 @@
 import * as FileSystem from 'expo-file-system'; // Import FileSystem for file operations
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image } from 'react-native'; // Import Image for the delete and edit icons
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image, TextInput } from 'react-native'; // Import Image for the delete and edit icons
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './App';
+import { Swipeable } from 'react-native-gesture-handler'; // Import Swipeable for swipe functionality
 
 const storageFilePath = FileSystem.documentDirectory + 'storageBinScanner.json'; // Define the file path
 
@@ -50,6 +51,39 @@ const BinsList = () => {
     }
   };
 
+  const deleteBin = async (binIndex: number) => {
+    try {
+      const updatedBins = [...bins];
+      updatedBins.splice(binIndex, 1); // Remove the bin from the list
+      setBins(updatedBins); // Update the state
+      await FileSystem.writeAsStringAsync(storageFilePath, JSON.stringify(updatedBins)); // Save the updated bins to the file
+      console.log('Updated file contents after bin deletion:', updatedBins);
+    } catch (error) {
+      console.error('Error deleting bin:', error);
+    }
+  };
+
+  const editBinTitle = async (binIndex: number, newTitle: string) => {
+    try {
+      const updatedBins = [...bins];
+      updatedBins[binIndex][1] = newTitle; // Update the title in the array
+      setBins(updatedBins); // Update the state
+      await FileSystem.writeAsStringAsync(storageFilePath, JSON.stringify(updatedBins)); // Save the updated bins to the file
+      console.log('Updated file contents after title edit:', updatedBins);
+    } catch (error) {
+      console.error('Error editing bin title:', error);
+    }
+  };
+
+  const renderRightActions = (binIndex: number) => (
+    <TouchableOpacity
+      style={styles.swipeDeleteButton}
+      onPress={() => deleteBin(binIndex)}
+    >
+      <Text style={styles.swipeDeleteText}>Delete</Text>
+    </TouchableOpacity>
+  );
+
   const navigateToEditBin = (binIndex: number) => {
     navigation.navigate('EditBin', { binIndex }); // Navigate to the EditBin page with the bin index
   };
@@ -61,35 +95,46 @@ const BinsList = () => {
       </TouchableOpacity>
       <ScrollView style={styles.scrollView}>
         {bins.map((bin, index) => (
-          <TouchableOpacity
-            style={styles.binContainer} // Make the entire white section clickable
-            onPress={() => toggleBinExpansion(index)}
-            activeOpacity={0.7} // Add animation effect on press
+          <Swipeable
+            renderRightActions={() => renderRightActions(index)}
+            key={index}
           >
-            <View style={styles.binHeaderRow}>
-              <TouchableOpacity onPress={() => navigateToEditBin(index)} style={styles.editButton}>
-                <Image source={require('./assets/edit.png')} style={styles.editIcon} /> 
-              </TouchableOpacity>
-              <View style={styles.centeredBinHeaderContainer}> 
-                <Text style={styles.binHeader}>Bin ID: {bin[0]}</Text>
-              </View>
-              {bin.length > 1 ? (
-                <Text style={styles.toggleSymbol}>{expandedBins.has(index) ? '-' : '+'}</Text>
-              ) : (
-                <Text style={styles.emptyBinMessage}>(Empty)</Text>
-              )}
-            </View>
-            {expandedBins.has(index) && bin.length > 1 && (
-              bin.slice(1).map((item: string, itemIndex: number) => (
-                <View key={itemIndex} style={styles.itemContainer}>
-                  <Text style={styles.binItem}>- {item}</Text>
-                  <TouchableOpacity onPress={() => deleteItemFromBin(index, itemIndex)} style={styles.deleteButton}>
-                    <Image source={require('./assets/delete.png')} style={styles.deleteIcon} />
-                  </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.binContainer} // Make the entire white section clickable
+              onPress={() => toggleBinExpansion(index)}
+              activeOpacity={0.7} // Add animation effect on press
+            >
+              <View style={styles.binHeaderRow}>
+                <TouchableOpacity onPress={() => navigateToEditBin(index)} style={styles.editButton}>
+                  <Image source={require('./assets/edit.png')} style={styles.editIcon} />
+                </TouchableOpacity>
+                <View style={styles.centeredBinHeaderContainer}> 
+                  <TextInput
+                    style={styles.binHeaderInput}
+                    value={bin[1] || ''}
+                    onChangeText={(newTitle) => editBinTitle(index, newTitle)}
+                    placeholder="Enter bin title"
+                    placeholderTextColor="#999"
+                  />
                 </View>
-              ))
-            )}
-          </TouchableOpacity>
+                {bin.length > 1 ? (
+                  <Text style={styles.toggleSymbol}>{expandedBins.has(index) ? '-' : '+'}</Text>
+                ) : (
+                  <Text style={styles.emptyBinMessage}>(Empty)</Text>
+                )}
+              </View>
+              {expandedBins.has(index) && bin.length > 2 && (
+                bin.slice(2).map((item: string, itemIndex: number) => (
+                  <View key={itemIndex} style={styles.itemContainer}>
+                    <Text style={styles.binItem}>- {item}</Text>
+                    <TouchableOpacity onPress={() => deleteItemFromBin(index, itemIndex + 2)} style={styles.deleteButton}>
+                      <Image source={require('./assets/delete.png')} style={styles.deleteIcon} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </TouchableOpacity>
+          </Swipeable>
         ))}
       </ScrollView>
     </View>
@@ -110,32 +155,33 @@ const styles = StyleSheet.create({
   },
   binContainer: {
     marginBottom: 20,
-    padding: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    padding: 15,
+    backgroundColor: '#F5F5F5', // Light gray background for bins
+    borderTopLeftRadius: 10, // Rounded corners only on the left side
+    borderBottomLeftRadius: 10, // Rounded corners only on the left side
+    borderTopRightRadius: 0, // No rounding on the right side
+    borderBottomRightRadius: 0, // No rounding on the right side
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.1, // Softer shadow for a subtle effect
+    shadowRadius: 4,
+    elevation: 2, // Slight elevation for depth
   },
   binHeader: {
-    fontSize: 18,
+    fontSize: 20, // Larger font size for better readability
     fontWeight: 'bold',
-    color: '#212121',
-    marginBottom: 5,
+    color: '#333', // Darker text for contrast
   },
-  binHeaderCentered: {
-    fontSize: 18,
+  binHeaderInput: {
+    fontSize: 20, // Larger font size for better readability
     fontWeight: 'bold',
-    color: '#212121',
-    textAlign: 'center', // Center the Bin ID
-    flex: 1, // Allow it to take up available space
+    color: '#333', // Darker text for contrast
+    textAlign: 'center', // Center the text input
   },
   binItem: {
     fontSize: 16,
-    color: '#424242',
-    marginLeft: 10,
+    color: '#555', // Softer text color for items
+    marginLeft: 15, // Indent items for hierarchy
   },
   backButton: {
     position: 'absolute',
@@ -187,6 +233,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 10, // Add spacing between header and items
   },
   editButton: {
     marginLeft: 10,
@@ -204,6 +251,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center', // Center the content
     position: 'relative', // Allow positioning of the empty message
+  },
+  swipeDeleteButton: {
+    backgroundColor: '#FF5252', // Bright red for delete button
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '77.7%', // Ensure the delete button matches the height of the bin container
+    borderTopRightRadius: 0, // Match bin container rounding
+    borderBottomRightRadius: 0, // Match bin container rounding
+  },
+  swipeDeleteText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
